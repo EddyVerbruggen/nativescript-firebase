@@ -2661,20 +2661,28 @@ class ASAuthorizationControllerDelegateImpl extends NSObject /* implements ASAut
           "apple.com", idToken, rawNonce);
 
       // Sign in with Firebase.
-      FIRAuth.auth().signInWithCredentialCompletion(
-          fIROAuthCredential,
-          (authResult: FIRAuthDataResult, error: NSError) => {
-            if (error) {
-              this.reject(error.localizedDescription);
-            } else {
-              firebase.notifyAuthStateListeners({
-                loggedIn: true,
-                user: toLoginResult(authResult.user)
-              });
-              this.resolve(toLoginResult(authResult && authResult.user, authResult && authResult.additionalUserInfo));
-              firebase.appleAuthDelegate = null;
-            }
+      const authResultCb = (authResult: FIRAuthDataResult, error: NSError) => {
+        if (error) {
+          this.reject(error.localizedDescription);
+        } else {
+          firebase.notifyAuthStateListeners({
+            loggedIn: true,
+            user: toLoginResult(authResult.user)
           });
+          this.resolve(toLoginResult(authResult && authResult.user, authResult && authResult.additionalUserInfo));
+          firebase.appleAuthDelegate = null;
+        }
+      }
+
+      // Link to existing credential or create a new user
+      // For some reason using a ternary operator or variable to refer to one of these two functions
+      // and then invoking them that way causes +[FIRUser linkWithCredential:completion:]:
+      // unrecognized selector sent to class 0x103529690
+      if (FIRAuth.auth().currentUser) {
+        FIRAuth.auth().currentUser.linkWithCredentialCompletion(fIROAuthCredential, authResultCb)
+      } else {
+        FIRAuth.auth().signInWithCredentialCompletion(fIROAuthCredential, authResultCb)
+      }
     }
   }
 
