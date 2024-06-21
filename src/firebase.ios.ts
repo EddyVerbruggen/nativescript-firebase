@@ -919,6 +919,7 @@ firebase.getAuthToken = (arg: GetAuthTokenOptions): Promise<IdTokenResult> => {
 firebase.login = arg => {
   return new Promise((resolve, reject) => {
     try {
+      let phoneAuthVerificationId = "";
       const onCompletionWithAuthResult = (authResult: FIRAuthDataResult, error?: NSError) => {
         if (error) {
           // also disconnect from Google otherwise ppl can't connect with a different account
@@ -1021,10 +1022,14 @@ firebase.login = arg => {
             reject(error.localizedDescription);
             return;
           }
+          // Keep track of the 'current' verificationId to avoid conflicts with previous ones wrongly input
+          phoneAuthVerificationId = verificationID;
 
           firebase.requestPhoneAuthVerificationCode(userResponse => {
             if (userResponse === undefined) {
               reject("Prompt was canceled");
+              return;
+            } else if (phoneAuthVerificationId !== verificationID) {
               return;
             }
             const fIRAuthCredential = FIRPhoneAuthProvider.provider().credentialWithVerificationIDVerificationCode(verificationID, userResponse);

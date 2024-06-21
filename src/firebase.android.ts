@@ -1031,6 +1031,7 @@ firebase.login = arg => {
       firebase.moveLoginOptionsToObjects(arg);
 
       const firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance();
+      let phoneAuthVerificationId = "";
       const onCompleteListener = new gmsTasks.OnCompleteListener({
         onComplete: task => {
           if (!task.isSuccessful()) {
@@ -1151,6 +1152,8 @@ firebase.login = arg => {
             }
           },
           onCodeSent: (verificationId, forceResendingToken) => {
+            // Keep track of the 'current' verificationId to avoid conflicts with previous ones wrongly input
+            phoneAuthVerificationId = verificationId;
             // If the device has a SIM card auto-verification may occur in the background (eventually calling onVerificationCompleted)
             // .. so the prompt would be redundant, but it's recommended by Google not to wait to long before showing the prompt
             setTimeout(() => {
@@ -1159,6 +1162,8 @@ firebase.login = arg => {
                 firebase.requestPhoneAuthVerificationCode(userResponse => {
                   if (userResponse === undefined && firebase.reject) {
                     firebase.reject("Prompt was canceled");
+                    return;
+                  } else if (phoneAuthVerificationId !== verificationId) {
                     return;
                   }
                   const authCredential = com.google.firebase.auth.PhoneAuthProvider.getCredential(verificationId, userResponse);
