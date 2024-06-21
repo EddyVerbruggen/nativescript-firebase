@@ -1229,6 +1229,20 @@ firebase.reauthenticate = arg => {
 
       firebase.moveLoginOptionsToObjects(arg);
 
+      const onCompletion = (authResult: FIRAuthDataResult, error: NSError) => {
+        if (error) {
+          reject(error.localizedDescription);
+
+        } else {
+          firebase.notifyAuthStateListeners({
+            loggedIn: true,
+            user: toLoginResult(authResult.user)
+          });
+
+          resolve(toLoginResult(authResult && authResult.user, authResult && authResult.additionalUserInfo));
+        }
+      };
+
       let authCredential = null;
       if (arg.type === firebase.LoginType.PASSWORD) {
         if (!arg.passwordOptions || !arg.passwordOptions.email || !arg.passwordOptions.password) {
@@ -1237,6 +1251,31 @@ firebase.reauthenticate = arg => {
         }
         authCredential = FIREmailAuthProvider.credentialWithEmailPassword(arg.passwordOptions.email, arg.passwordOptions.password);
 
+      } else if (arg.type === firebase.LoginType.PHONE) {
+        // https://firebase.google.com/docs/auth/ios/phone-auth
+        if (!arg.phoneOptions || !arg.phoneOptions.phoneNumber) {
+          reject("Auth type PHONE requires a 'phoneOptions.phoneNumber' argument");
+          return;
+        }
+
+        FIRPhoneAuthProvider.provider().verifyPhoneNumberUIDelegateCompletion(arg.phoneOptions.phoneNumber, null, (verificationID: string, error: NSError) => {
+          if (error) {
+            reject(error.localizedDescription);
+            return;
+          }
+
+          firebase.requestPhoneAuthVerificationCode(userResponse => {
+            if (userResponse === undefined) {
+              reject("Prompt was canceled");
+              return;
+            }
+            const fIRAuthCredential = FIRPhoneAuthProvider.provider().credentialWithVerificationIDVerificationCode(verificationID, userResponse);
+
+            user.reauthenticateWithCredentialCompletion(fIRAuthCredential, onCompletion);
+          }, arg.phoneOptions.verificationPrompt);
+        });
+
+        return;
       } else if (arg.type === firebase.LoginType.GOOGLE) {
         if (!firebase._gIDAuthentication) {
           reject("Not currently logged in with Google");
@@ -1253,23 +1292,10 @@ firebase.reauthenticate = arg => {
       }
 
       if (authCredential === null) {
-        reject("arg.type should be one of LoginType.PASSWORD | LoginType.GOOGLE | LoginType.FACEBOOK");
+        reject("arg.type should be one of LoginType.PASSWORD | LoginType.PHONE | LoginType.GOOGLE | LoginType.FACEBOOK");
         return;
       }
 
-      const onCompletion = (authResult: FIRAuthDataResult, error: NSError) => {
-        if (error) {
-          reject(error.localizedDescription);
-
-        } else {
-          firebase.notifyAuthStateListeners({
-            loggedIn: true,
-            user: toLoginResult(authResult.user)
-          });
-
-          resolve(toLoginResult(authResult && authResult.user, authResult && authResult.additionalUserInfo));
-        }
-      };
       user.reauthenticateWithCredentialCompletion(authCredential, onCompletion);
 
     } catch (ex) {

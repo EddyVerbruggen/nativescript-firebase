@@ -1405,39 +1405,13 @@ firebase._alreadyLinkedToAuthProvider = (user, providerId) => {
 firebase.reauthenticate = arg => {
   return new Promise((resolve, reject) => {
     try {
+      // need these to support using phone auth more than once
+      firebase.resolve = resolve;
+      firebase.reject = reject;
+
       const user = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
       if (user === null) {
         reject("no current user");
-        return;
-      }
-
-      firebase.moveLoginOptionsToObjects(arg);
-
-      let authCredential = null;
-      if (arg.type === firebase.LoginType.PASSWORD) {
-        if (!arg.passwordOptions || !arg.passwordOptions.email || !arg.passwordOptions.password) {
-          reject("Auth type PASSWORD requires an 'passwordOptions.email' and 'passwordOptions.password' argument");
-          return;
-        }
-        authCredential = com.google.firebase.auth.EmailAuthProvider.getCredential(arg.passwordOptions.email, arg.passwordOptions.password);
-
-      } else if (arg.type === firebase.LoginType.GOOGLE) {
-        if (!firebase._googleSignInIdToken) {
-          reject("Not currently logged in with Google");
-          return;
-        }
-        authCredential = com.google.firebase.auth.GoogleAuthProvider.getCredential(firebase._googleSignInIdToken, null);
-
-      } else if (arg.type === firebase.LoginType.FACEBOOK) {
-        if (!firebase._facebookAccessToken) {
-          reject("Not currently logged in with Facebook");
-          return;
-        }
-        authCredential = com.google.firebase.auth.FacebookAuthProvider.getCredential(firebase._facebookAccessToken);
-      }
-
-      if (authCredential === null) {
-        reject("arg.type should be one of LoginType.PASSWORD | LoginType.GOOGLE | LoginType.FACEBOOK");
         return;
       }
 
@@ -1457,6 +1431,92 @@ firebase.reauthenticate = arg => {
           }
         }
       });
+
+      firebase.moveLoginOptionsToObjects(arg);
+
+      let authCredential = null;
+      if (arg.type === firebase.LoginType.PASSWORD) {
+        if (!arg.passwordOptions || !arg.passwordOptions.email || !arg.passwordOptions.password) {
+          reject("Auth type PASSWORD requires an 'passwordOptions.email' and 'passwordOptions.password' argument");
+          return;
+        }
+        authCredential = com.google.firebase.auth.EmailAuthProvider.getCredential(arg.passwordOptions.email, arg.passwordOptions.password);
+
+      } else if (arg.type === firebase.LoginType.PHONE) {
+        if (!arg.phoneOptions || !arg.phoneOptions.phoneNumber) {
+          reject("Auth type PHONE requires a 'phoneOptions.phoneNumber' argument");
+          return;
+        }
+
+        const OnVerificationStateChangedCallbacks = com.google.firebase.auth.PhoneAuthProvider.OnVerificationStateChangedCallbacks.extend({
+          onVerificationCompleted: phoneAuthCredential => {
+            firebase._verifyPhoneNumberInProgress = false;
+            user.reauthenticate(phoneAuthCredential).addOnCompleteListener(onCompleteListener);
+          },
+          onVerificationFailed: firebaseException => {
+            firebase._verifyPhoneNumberInProgress = false;
+            const errorMessage = firebaseException.getMessage();
+            if (errorMessage.includes("INVALID_APP_CREDENTIAL")) {
+              if (firebase.reject) {
+                firebase.reject("Please upload the SHA1 fingerprint of your debug and release keystores to the Firebase console, see https://github.com/EddyVerbruggen/nativescript-plugin-firebase/blob/master/docs/AUTHENTICATION.md#phone-verification");
+              }
+            } else {
+              if (firebase.reject) {
+                firebase.reject(errorMessage);
+              }
+            }
+          },
+          onCodeSent: (verificationId, forceResendingToken) => {
+            // If the device has a SIM card auto-verification may occur in the background (eventually calling onVerificationCompleted)
+            // .. so the prompt would be redundant, but it's recommended by Google not to wait to long before showing the prompt
+            setTimeout(() => {
+              if (firebase._verifyPhoneNumberInProgress) {
+                firebase._verifyPhoneNumberInProgress = false;
+                firebase.requestPhoneAuthVerificationCode(userResponse => {
+                  if (userResponse === undefined && firebase.reject) {
+                    firebase.reject("Prompt was canceled");
+                    return;
+                  }
+                  authCredential = com.google.firebase.auth.PhoneAuthProvider.getCredential(verificationId, userResponse);
+
+                  user.reauthenticate(authCredential).addOnCompleteListener(onCompleteListener);
+                }, arg.phoneOptions.verificationPrompt);
+              }
+            }, 3000);
+          }
+        });
+
+        firebase._verifyPhoneNumberInProgress = true;
+
+        let timeout = arg.phoneOptions.android ? arg.phoneOptions.android.timeout : 60;
+        com.google.firebase.auth.PhoneAuthProvider.getInstance().verifyPhoneNumber(
+            arg.phoneOptions.phoneNumber,
+            timeout, // timeout (in seconds, because of the next argument)
+            java.util.concurrent.TimeUnit.SECONDS,
+            Application.android.foregroundActivity,
+            new OnVerificationStateChangedCallbacks());
+
+        return;
+      } else if (arg.type === firebase.LoginType.GOOGLE) {
+        if (!firebase._googleSignInIdToken) {
+          reject("Not currently logged in with Google");
+          return;
+        }
+        authCredential = com.google.firebase.auth.GoogleAuthProvider.getCredential(firebase._googleSignInIdToken, null);
+
+      } else if (arg.type === firebase.LoginType.FACEBOOK) {
+        if (!firebase._facebookAccessToken) {
+          reject("Not currently logged in with Facebook");
+          return;
+        }
+        authCredential = com.google.firebase.auth.FacebookAuthProvider.getCredential(firebase._facebookAccessToken);
+      }
+
+      if (authCredential === null) {
+        reject("arg.type should be one of LoginType.PASSWORD | LoginType.PHONE | LoginType.GOOGLE | LoginType.FACEBOOK");
+        return;
+      }
+
       user.reauthenticate(authCredential).addOnCompleteListener(onCompleteListener);
 
     } catch (ex) {
