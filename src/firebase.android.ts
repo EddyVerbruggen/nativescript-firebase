@@ -2933,5 +2933,10 @@ export class QuerySnapshot implements firestore.QuerySnapshot {
     this.docSnapshots.map(snapshot => callback(snapshot));
   }
 }
+firebase.firestore.FieldPath = class {
+  static documentId() {
+    return com.google.firebase.firestore.FieldPath.documentId();
+  }
+}
 
 export * from './firebase-common';
