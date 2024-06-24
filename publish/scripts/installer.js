@@ -347,7 +347,7 @@ function writePodFile(result) {
 // The MLVision pod requires a minimum of iOS 9, otherwise the build will fail
 (isPresent(result.ml_kit) ? `` : `#`) + `platform :ios, '9.0'
 
-` + (!isSelected(result.external_push_client_only) ? `` : `#`) + `pod 'Firebase/Core', '~>6.34.0'
+` + (!isSelected(result.external_push_client_only) ? `` : `#`) + `pod 'Firebase/Core', '~>6.26.0'
 
 # Analytics
 ` + (isSelected(result.analytics) || isSelected(result.crashlytics) || (!isSelected(result.external_push_client_only) && !isPresent(result.analytics)) ? `` : `#`) + `pod 'Firebase/Analytics'
@@ -359,7 +359,7 @@ function writePodFile(result) {
 ` + (isSelected(result.realtimedb) || (!isSelected(result.external_push_client_only) && !isPresent(result.realtimedb)) ? `` : `#`) + `pod 'Firebase/Database'
 
 # Cloud Firestore
-` + (isSelected(result.firestore) ? `` : `#`) + `pod 'Firebase/Firestore'
+` + (isSelected(result.firestore) ? `` : `#`) + `pod 'FirebaseFirestore', :git => 'https://github.com/invertase/firestore-ios-sdk-frameworks.git', :tag => '6.26.0'
 
 # Remote Config
 ` + (isSelected(result.remote_config) ? `` : `#`) + `pod 'Firebase/RemoteConfig'
@@ -635,16 +635,16 @@ dependencies {
     implementation "com.google.android.gms:play-services-base:$googlePlayServicesVersion"
 
     // Authentication
-    ` + (isSelected(result.authentication) || (!isSelected(result.external_push_client_only) && !isPresent(result.authentication)) ? `` : `//`) + ` implementation "com.google.firebase:firebase-auth:19.2.0"
+    ` + (isSelected(result.authentication) || (!isSelected(result.external_push_client_only) && !isPresent(result.authentication)) ? `` : `//`) + ` implementation "com.google.firebase:firebase-auth:20.0.0"
 
     // Realtime DB
     ` + (isSelected(result.realtimedb) || (!isSelected(result.external_push_client_only) && !isPresent(result.realtimedb)) ? `` : `//`) + ` implementation "com.google.firebase:firebase-database:19.2.1"
 
     // Cloud Firestore
-    ` + (isSelected(result.firestore) ? `` : `//`) + ` implementation "com.google.firebase:firebase-firestore:21.4.0"
+    ` + (isSelected(result.firestore) ? `` : `//`) + ` implementation "com.google.firebase:firebase-firestore:22.0.0"
 
     // Remote Config
-    ` + (isSelected(result.remote_config) ? `` : `//`) + ` implementation "com.google.firebase:firebase-config:19.1.1"
+    ` + (isSelected(result.remote_config) ? `` : `//`) + ` implementation "com.google.firebase:firebase-config:20.0.0"
 
     // Performance Monitoring
     ` + (isSelected(result.performance_monitoring) ? `` : `//`) + ` implementation "com.google.firebase:firebase-perf:19.0.5"
@@ -653,19 +653,19 @@ dependencies {
     ` + (isSelected(result.crashlytics) ? `` : `//`) + ` implementation "com.google.firebase:firebase-crashlytics:17.2.2"
 
     // Cloud Messaging (FCM)
-    ` + (isSelected(result.messaging) || isSelected(result.external_push_client_only) ? `` : `//`) + ` implementation "com.google.firebase:firebase-messaging:20.1.0"
+    ` + (isSelected(result.messaging) || isSelected(result.external_push_client_only) ? `` : `//`) + ` implementation "com.google.firebase:firebase-messaging:21.0.0"
     // ` + (isSelected(result.messaging) || isSelected(result.external_push_client_only) ? `` : `//`) + ` implementation "me.leolin:ShortcutBadger:1.1.22@aar"
 
     // In-App Messaging
-    ` + (isSelected(result.in_app_messaging) ? `` : `//`) + ` implementation "com.google.firebase:firebase-inappmessaging-display:19.0.3"
+    ` + (isSelected(result.in_app_messaging) ? `` : `//`) + ` implementation "com.google.firebase:firebase-inappmessaging-display:19.1.2"
     // Analytics seems to be required for In-App Messaging
-    ` + (isSelected(result.in_app_messaging) && !isSelected(result.analytics) ? `` : `//`) + ` implementation "com.google.firebase:firebase-analytics:17.2.2"
+    ` + (isSelected(result.in_app_messaging) && !isSelected(result.analytics) ? `` : `//`) + ` implementation "com.google.firebase:firebase-analytics:18.0.0"
 
     // Cloud Storage
-    ` + (isSelected(result.storage) ? `` : `//`) + ` implementation "com.google.firebase:firebase-storage:19.1.1"
+    ` + (isSelected(result.storage) ? `` : `//`) + ` implementation "com.google.firebase:firebase-storage:19.2.0"
 
     // Cloud Functions
-    ` + (isSelected(result.functions) ? `` : `//`) + ` implementation "com.google.firebase:firebase-functions:19.0.2"
+    ` + (isSelected(result.functions) ? `` : `//`) + ` implementation "com.google.firebase:firebase-functions:19.1.0"
 
     // AdMob / Ads
     ` + (isSelected(result.admob) ? `` : `//`) + ` implementation "com.google.firebase:firebase-ads:18.3.0"
