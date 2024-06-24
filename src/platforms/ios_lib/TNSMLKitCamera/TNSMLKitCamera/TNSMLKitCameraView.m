@@ -65,7 +65,7 @@ static int const alphaComponentModuloRemainder = 3;
             }
         }
     }
-
+    CGContextRelease(context);
     return inputData;
 }
 

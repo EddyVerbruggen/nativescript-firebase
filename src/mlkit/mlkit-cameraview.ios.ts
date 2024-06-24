@@ -238,6 +238,11 @@ class TNSMLKitCameraViewDelegateImpl extends NSObject implements TNSMLKitCameraV
     } else {
       this.owner.get().runDetector(image, onComplete);
     }
+    image = null;
+    // FIX: possible memory issue when picking images many times.
+    // Not the best solution, but the only one working for now
+    // https://github.com/NativeScript/nativescript-imagepicker/issues/222
+    setTimeout(Utils.GC, 200);
   }
 
   private uiImageToFIRVisionImage(image: UIImage): FIRVisionImage {
