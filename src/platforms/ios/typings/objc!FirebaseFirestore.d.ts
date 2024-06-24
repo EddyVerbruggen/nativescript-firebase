@@ -294,6 +294,8 @@ declare class FIRQuery extends NSObject {
 
 	addSnapshotListenerWithIncludeMetadataChangesListener(includeMetadataChanges: boolean, listener: (p1: FIRQuerySnapshot, p2: NSError) => void): FIRListenerRegistration;
 
+	isEqual(other: FIRQuery): boolean;
+
 	getDocumentsWithCompletion(completion: (p1: FIRQuerySnapshot, p2: NSError) => void): void;
 
 	getDocumentsWithSourceCompletion(source: FIRFirestoreSource, completion: (p1: FIRQuerySnapshot, p2: NSError) => void): void;

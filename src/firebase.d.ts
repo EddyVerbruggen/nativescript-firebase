@@ -1000,6 +1000,12 @@ export namespace firestore {
     endBefore(snapshot: DocumentSnapshot): Query;
 
     endBefore(...fieldValues: any[]): Query;
+
+    ios?: FIRQuery;
+
+    android?: com.google.firebase.firestore.Query;
+
+    isEqual: (other: firestore.Query) => boolean;
   }
 
   export interface CollectionGroup {
