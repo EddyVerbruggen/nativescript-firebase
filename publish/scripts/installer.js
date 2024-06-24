@@ -722,29 +722,17 @@ module.exports = function($logger, $projectData, hookArgs) {
 return new Promise(function(resolve, reject) {
 
         /* Decide whether to prepare for dev or prod environment */
-        var validStagingEnvs = ["dev", "development", "staging"];
-        var validProdEnvs = ['prod','production'];
-        var isProdEnv = false; // building with --env.prod or --env.production flag
-        var isStagingEnv = false;
         var env = (hookArgs.platformSpecificData || hookArgs.prepareData).env;
+        const platformFromHookArgs = hookArgs.platform || (hookArgs.prepareData && hookArgs.prepareData.platform);
+        const platform = (platformFromHookArgs || '').toLowerCase();
+        var isReleaseBuild = !!(hookArgs.prepareData).release;
 
-        if (env) {
-            Object.keys(env).forEach((key) => {
-                if (validProdEnvs.indexOf(key)>-1) { 
-			isProdEnv = true;
-		}
-		if (validStagingEnvs.indexOf(key) > -1) {
-			isStagingEnv = true;
-		}
-            });
-        }
-
-        var buildType = isProdEnv && !isStagingEnv ? "production" : "development";
-        const platformFromHookArgs = hookArgs && (hookArgs.platform || (hookArgs.prepareData && hookArgs.prepareData.platform));
-        const platform = (platformFromHookArgs  || '').toLowerCase();
-
+        /* Decide whether to prepare for dev or prod environment */
+        var isStagingEnv = ["dev", "development", "staging"].some(k => k in env);
+        var isProdEnv = ["prod", "production"].some(k => k in env); // building with --env.prod or --env.production flag
+        var buildType = (isReleaseBuild && !isStagingEnv) || isProdEnv ? 'production' : 'development';
+        
         /* Create info file in platforms dir so we can detect changes in environment and force prepare if needed */
-
         var npfInfoPath = path.join($projectData.platformsDir, platform, ".pluginfirebaseinfo");
         var npfInfo = {
             buildType: buildType,
@@ -755,9 +743,7 @@ return new Promise(function(resolve, reject) {
             $logger.info('nativescript-plugin-firebase: unable to create '+npfInfoPath+', prepare will be forced next time!');
         }
 
-
         /* Handle preparing of Google Services files */
-
         if (platform === 'android') {
             var destinationGoogleJson = path.join($projectData.platformsDir, "android", "app", "google-services.json");
             var destinationGoogleJsonAlt = path.join($projectData.platformsDir, "android", "google-services.json");
@@ -767,8 +753,7 @@ return new Promise(function(resolve, reject) {
 
             // ensure we have both dev/prod versions so we never overwrite singlular google-services.json
             if (fs.existsSync(sourceGoogleJsonProd) && fs.existsSync(sourceGoogleJsonDev)) {
-                if (buildType==='production') { sourceGoogleJson = sourceGoogleJsonProd; } // use prod version
-                else { sourceGoogleJson = sourceGoogleJsonDev; } // use dev version
+                sourceGoogleJson = buildType === 'production' ? sourceGoogleJsonProd : sourceGoogleJsonDev
             }
 
             // copy correct version to destination
@@ -803,6 +788,7 @@ return new Promise(function(resolve, reject) {
         }
     });
 };
+
 `;
     var scriptPath = path.join(appRoot, "hooks", "after-prepare", "firebase-copy-google-services.js");
     var afterPrepareDirPath = path.dirname(scriptPath);
@@ -834,23 +820,12 @@ module.exports = function($logger, hookArgs) {
     return new Promise(function(resolve, reject) {
 
         /* Decide whether to prepare for dev or prod environment */
-
+        var env = ((hookArgs.checkForChangesOpts && hookArgs.checkForChangesOpts.projectData && hookArgs.checkForChangesOpts.projectData.$options && hookArgs.checkForChangesOpts.projectData.$options.argv) || hookArgs.prepareData).env || {};
+        const platform = (hookArgs.checkForChangesOpts || hookArgs.prepareData).platform.toLowerCase();
         var isReleaseBuild = !!((hookArgs.checkForChangesOpts && hookArgs.checkForChangesOpts.projectChangesOptions) || hookArgs.prepareData).release;
-        var validProdEnvs = ['prod','production'];
-        var validStagingEnvs = ["dev", "development", "staging"];
-        var isStagingEnv = false;
-        var isProdEnv = false; // building with --env.prod or --env.production flag
 
-        var env = ((hookArgs.checkForChangesOpts && hookArgs.checkForChangesOpts.projectData && hookArgs.checkForChangesOpts.projectData.$options && hookArgs.checkForChangesOpts.projectData.$options.argv) || hookArgs.prepareData).env;
-        if (env) {
-            Object.keys(env).forEach((key) => {
-                if (validProdEnvs.indexOf(key)>-1) { isProdEnv=true; }
-                if (validStagingEnvs.indexOf(key) > -1) { isStagingEnv = true; }
-            });
-            
-            
-        }
-
+        var isStagingEnv = ["dev", "development", "staging"].some(k => k in env);
+        var isProdEnv = ["prod", "production"].some(k => k in env); // building with --env.prod or --env.production flag
         var buildType = (isReleaseBuild && !isStagingEnv) || isProdEnv ? 'production' : 'development';
 
         /*
@@ -858,7 +833,6 @@ module.exports = function($logger, hookArgs) {
             for which environment {development|prod} the project was prepared. If needed, we delete the NS .nsprepareinfo
             file so we force a new prepare
         */
-        var platform = (hookArgs.checkForChangesOpts || hookArgs.prepareData).platform.toLowerCase();
         var projectData = (hookArgs.checkForChangesOpts && hookArgs.checkForChangesOpts.projectData) || hookArgs.projectData;
         var platformsDir = projectData.platformsDir;
         var appResourcesDirectoryPath = projectData.appResourcesDirectoryPath;
@@ -872,11 +846,11 @@ module.exports = function($logger, hookArgs) {
             try { npfInfo = JSON.parse(fs.readFileSync(npfInfoPath, 'utf8')); }
             catch (e) { $logger.info('nativescript-plugin-firebase: error reading '+npfInfoPath); }
 
-            if (npfInfo && npfInfo.hasOwnProperty('buildType') && npfInfo.buildType===buildType) {
+            if (npfInfo && npfInfo.hasOwnProperty('buildType') && npfInfo.buildType === buildType) {
                 $logger.info('nativescript-plugin-firebase: building for same environment, not forcing prepare.');
-                forcePrepare=false;
+                forcePrepare = false;
             }
-        } else { $logger.info('nativescript-plugin-firebase: '+npfInfoPath+' not found, forcing prepare!'); }
+        } else { $logger.info('nativescript-plugin-firebase: ' + npfInfoPath + ' not found, forcing prepare!'); }
 
         if (forcePrepare) {
             $logger.info('nativescript-plugin-firebase: running release build or change in environment detected, forcing prepare!');
@@ -901,7 +875,7 @@ var copyPlist = function(copyPlistOpts) {
 
         // if we have both dev/prod versions, we copy (or overwrite) GoogleService-Info.plist in destination dir
         if (fs.existsSync(sourceGooglePlistProd) && fs.existsSync(sourceGooglePlistDev)) {
-            if (copyPlistOpts.buildType==='production') { // use prod version
+            if (copyPlistOpts.buildType === 'production') { // use prod version
                 copyPlistOpts.$logger.info("nativescript-plugin-firebase: copy " + sourceGooglePlistProd + " to " + destinationGooglePlist + ".");
                 fs.writeFileSync(destinationGooglePlist, fs.readFileSync(sourceGooglePlistProd));
                 return true;
